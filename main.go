@@ -13,6 +13,8 @@ func init() {
 
 func main() {
 	router := gin.Default()
+
+	// Posts
 	router.POST("/posts", controllers.PostsCreate)
 	router.GET("/post/:id", controllers.PostsShow)
 	router.GET("/posts", controllers.PostsIndex)
@@ -20,5 +22,10 @@ func main() {
 	router.DELETE("/post/:id", controllers.PostsDelete)
 	router.GET("/monkeytype/", controllers.MonkeyAPI)
 	router.NoRoute(controllers.NotFoundHandler)
+
+	// Users
+	router.POST("/register", controllers.Register)
+	router.GET("/users", controllers.Users)
+
 	router.Run()
 }
