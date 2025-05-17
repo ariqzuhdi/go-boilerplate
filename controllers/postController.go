@@ -25,10 +25,22 @@ func PostsCreate(c *gin.Context) {
 
 	c.Bind(&body)
 
+	userIDInterface, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, ok := userIDInterface.(uint)
+	if !ok {
+		c.JSON(500, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	post := models.Post{
 		Title:  body.Title,
 		Body:   body.Body,
-		UserID: 2,
+		UserID: userID,
 	}
 
 	result := initializers.DB.Create(&post)
