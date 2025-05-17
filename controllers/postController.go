@@ -1,10 +1,20 @@
 package controllers
 
 import (
+	"io"
+	"net/http"
+	"os"
+
 	"github.com/cheeszy/go-crud/initializers"
 	"github.com/cheeszy/go-crud/models"
 	"github.com/gin-gonic/gin"
 )
+
+func NotFoundHandler(c *gin.Context) {
+	c.JSON(404, gin.H{
+		"error": "URL not found.",
+	})
+}
 
 func PostsCreate(c *gin.Context) {
 	// Get data off requests body
@@ -92,4 +102,27 @@ func PostsDelete(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"Message": "Deleted.",
 	})
+}
+
+func MonkeyAPI(c *gin.Context) {
+	apiKey := os.Getenv("MONKEYTYPE_API_KEY")
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", "https://api.monkeytype.com/users/personalBests?mode=time", nil)
+	req.Header.Add("Authorization", "ApeKey "+apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to read response body"})
+		return
+	}
+
+	// Forward response eksternal ke client
+	c.Data(resp.StatusCode, "application/json", body)
 }

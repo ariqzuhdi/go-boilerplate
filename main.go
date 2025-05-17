@@ -18,5 +18,7 @@ func main() {
 	router.GET("/posts", controllers.PostsIndex)
 	router.PUT("/post/:id", controllers.PostsUpdate)
 	router.DELETE("/post/:id", controllers.PostsDelete)
+	router.GET("/monkeytype/", controllers.MonkeyAPI)
+	router.NoRoute(controllers.NotFoundHandler)
 	router.Run()
 }
