@@ -75,9 +75,9 @@ func PostsShow(c *gin.Context) {
 	id := c.Param("id")
 
 	var post []models.Post
-	request := initializers.DB.Where("id = ? AND user_id = ?", id, userID).First(&post, id)
-	if request != nil {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+	result := initializers.DB.Where("id = ? AND user_id = ?", id, userID).First(&post, id)
+	if result.Error != nil {
+		c.JSON(404, gin.H{"error": "Post not found"})
 		return
 	}
 
@@ -87,6 +87,19 @@ func PostsShow(c *gin.Context) {
 }
 
 func PostsUpdate(c *gin.Context) {
+
+	userIDInterface, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, ok := userIDInterface.(uint)
+	if !ok {
+		c.JSON(500, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	// Get the id of url
 	id := c.Param("id")
 
@@ -99,11 +112,17 @@ func PostsUpdate(c *gin.Context) {
 
 	c.Bind(&body)
 
-	// find the post were updateing
+	// find the post were updating
 	var post []models.Post
-	initializers.DB.First(&post, id)
+	result := initializers.DB.Where("id = ? AND user_id = ?", id, userID).First(&post, id)
+	if result.Error != nil {
+		c.JSON(401, gin.H{
+			"error": "Unauthorized",
+		})
+		return
+	}
 
-	initializers.DB.Model(&post).Updates(models.Post{
+	initializers.DB.Where("id = ? AND user_id = ?", id, userID).Model(&post).Updates(models.Post{
 		Title: body.Title, Body: body.Body,
 	})
 
@@ -111,6 +130,39 @@ func PostsUpdate(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"post": post,
 	})
+}
+
+func PostsDelete(c *gin.Context) {
+
+	userIDInterface, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, ok := userIDInterface.(uint)
+	if !ok {
+		c.JSON(500, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	id := c.Param("id")
+	var post models.Post
+
+	result := initializers.DB.Where("id = ? AND user_id = ?", id, userID).Delete(&post, id)
+
+	if result.Error != nil {
+		c.JSON(500, gin.H{"error": "Failed to delete post"})
+		return
+	}
+
+	if result.RowsAffected == 0 {
+		c.JSON(404, gin.H{"error": "Post not found or unauthorized"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "Deleted"})
+
 }
 
 func PostsIndex(c *gin.Context) {
@@ -121,18 +173,6 @@ func PostsIndex(c *gin.Context) {
 	//Respond with them
 	c.JSON(200, gin.H{
 		"post": posts,
-	})
-}
-
-func PostsDelete(c *gin.Context) {
-
-	id := c.Param("id")
-	var post []models.Post
-
-	initializers.DB.Delete(&post, id)
-
-	c.JSON(200, gin.H{
-		"Message": "Deleted.",
 	})
 }
 
