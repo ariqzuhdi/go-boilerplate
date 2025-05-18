@@ -57,23 +57,29 @@ func PostsCreate(c *gin.Context) {
 	})
 }
 
-func PostsIndex(c *gin.Context) {
-	//Get the posts
-	var posts []models.Post
-	initializers.DB.Find(&posts)
-
-	//Respond with them
-	c.JSON(200, gin.H{
-		"post": posts,
-	})
-}
-
 func PostsShow(c *gin.Context) {
+
+	userIDInterface, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, ok := userIDInterface.(uint)
+	if !ok {
+		c.JSON(500, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
 	// Get the id of url
 	id := c.Param("id")
 
 	var post []models.Post
-	initializers.DB.First(&post, id)
+	request := initializers.DB.Where("id = ? AND user_id = ?", id, userID).First(&post, id)
+	if request != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
 
 	c.JSON(200, gin.H{
 		"post": post,
@@ -104,6 +110,17 @@ func PostsUpdate(c *gin.Context) {
 	// updating
 	c.JSON(200, gin.H{
 		"post": post,
+	})
+}
+
+func PostsIndex(c *gin.Context) {
+	//Get the posts
+	var posts []models.Post
+	initializers.DB.Find(&posts)
+
+	//Respond with them
+	c.JSON(200, gin.H{
+		"post": posts,
 	})
 }
 
