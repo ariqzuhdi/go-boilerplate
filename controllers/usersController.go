@@ -70,13 +70,21 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// cek password (misal bcrypt)
+	// password checking (misal bcrypt)
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
 
-	// buat token JWT dengan user ID sebagai sub
+	// IsVerified checking
+	if !user.IsVerified {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Please verify your email.",
+		})
+		return
+	}
+
+	// create JWT token using user ID as sub
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": user.ID,                               // user ID sebagai subject
 		"exp": time.Now().Add(time.Hour * 24).Unix(), // token expired 24 jam
