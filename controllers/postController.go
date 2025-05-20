@@ -8,6 +8,7 @@ import (
 	"github.com/cheeszy/go-crud/initializers"
 	"github.com/cheeszy/go-crud/models"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func NotFoundHandler(c *gin.Context) {
@@ -31,7 +32,7 @@ func PostsCreate(c *gin.Context) {
 		return
 	}
 
-	userID, ok := userIDInterface.(uint)
+	userID, ok := userIDInterface.(uuid.UUID)
 	if !ok {
 		c.JSON(500, gin.H{"error": "Invalid user ID type"})
 		return
