@@ -26,6 +26,7 @@ func main() {
 	{
 		authorized.POST("/posts", controllers.PostsCreate)
 		authorized.GET("/post/:id", controllers.PostsShow)
+		authorized.GET("/:username", controllers.PostsShowAll)
 		authorized.PUT("/post/:id", controllers.PostsUpdate)
 		authorized.DELETE("/post/:id", controllers.PostsDelete)
 	}

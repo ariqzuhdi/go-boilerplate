@@ -15,6 +15,7 @@ type Post struct {
 
 	Title  string    `gorm:"not null"`
 	Body   string    `gorm:"type:text"`
-	UserID uuid.UUID `gorm:"type:uuid"` // foreign key
-	User   User
+	UserID uuid.UUID `gorm:"type:uuid;not null"` // foreign key
+
+	User User `gorm:"foreignKey:UserID"` // relasi belongs to User
 }

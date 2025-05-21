@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/cheeszy/go-crud/dto"
 	"github.com/cheeszy/go-crud/initializers"
 	"github.com/cheeszy/go-crud/models"
 	"github.com/gin-gonic/gin"
@@ -52,9 +53,15 @@ func PostsCreate(c *gin.Context) {
 
 	initializers.DB.Preload("User").First(&post, post.ID)
 
+	postResponse := dto.PostResponse{
+		ID:    post.ID,
+		Title: post.Title,
+		Body:  post.Body,
+	}
+
 	// return it
 	c.JSON(200, gin.H{
-		"post": post,
+		"post": postResponse,
 	})
 }
 
@@ -84,6 +91,62 @@ func PostsShow(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"post": post,
+	})
+}
+
+func PostsShowAll(c *gin.Context) {
+
+	userIDInterface, exists := c.Get("userID")
+	if !exists {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, ok := userIDInterface.(uuid.UUID)
+	if !ok {
+		c.JSON(500, gin.H{"error": "Invalid user ID type"})
+		return
+	}
+
+	// Get the id of url
+	username := c.Param("username")
+
+	// take user from username
+	var user models.User
+
+	if err := initializers.DB.Where("username = ?", username).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "User not found",
+		})
+		return
+	}
+
+	if user.ID != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Forbidden: You can't access this resource",
+		})
+		return
+	}
+
+	var posts []models.Post
+	result := initializers.DB.Preload("User").Where("user_id = ?", userID).Find(&posts)
+	if result.Error != nil {
+		c.JSON(404, gin.H{"error": "Post not found"})
+		return
+	}
+
+	var postResponses []dto.PostResponse
+	for _, post := range posts {
+		postResponses = append(postResponses, dto.PostResponse{
+			ID:    post.ID,
+			Title: post.Title,
+			Body:  post.Body,
+			User:  dto.UserResponse{Username: post.User.Username},
+		})
+	}
+
+	c.JSON(200, gin.H{
+		"posts": postResponses,
 	})
 }
 

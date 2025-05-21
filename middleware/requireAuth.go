@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 func RequireAuth(c *gin.Context) {
@@ -44,20 +45,27 @@ func RequireAuth(c *gin.Context) {
 	// Ambil klaim dari token
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		// Ambil userID dari claim "sub" dan konversi ke uint
-		userIDFloat, ok := claims["sub"].(float64)
+		userIDStr, ok := claims["sub"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Unauthorized: Invalid claims",
 			})
 			return
 		}
-		userID := uint(userIDFloat)
 
+		userID, err := uuid.Parse(userIDStr)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Unauthorized: Invalid user ID format",
+			})
+			return
+		}
 		// Simpan userID ke context agar bisa dipakai di handler lain
 		c.Set("userID", userID)
 
 		// Lanjut request
 		c.Next()
+
 	} else {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "Unauthorized: Invalid claims",
