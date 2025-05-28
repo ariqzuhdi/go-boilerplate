@@ -101,3 +101,9 @@ func Login(c *gin.Context) {
 		"token": tokenString,
 	})
 }
+
+func Logout(c *gin.Context) {
+	c.JSON(http.StatusAccepted, gin.H{
+		"text": "Bye",
+	})
+}
