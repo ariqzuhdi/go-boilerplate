@@ -7,8 +7,8 @@ type UserResponse struct {
 }
 
 type PostResponse struct {
-	ID    uuid.UUID    `json:"id"`
-	Title string       `json:"title"`
-	Body  string       `json:"body"`
-	User  UserResponse `json:"user"`
+	ID    uuid.UUID `json:"id"`
+	Title string    `json:"title"`
+	Body  string    `json:"body"`
+	// User  UserResponse `json:"user"`
 }

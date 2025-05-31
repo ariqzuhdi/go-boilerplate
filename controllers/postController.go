@@ -141,7 +141,7 @@ func PostsShowAll(c *gin.Context) {
 			ID:    post.ID,
 			Title: post.Title,
 			Body:  post.Body,
-			User:  dto.UserResponse{Username: post.User.Username},
+			// User:  dto.UserResponse{Username: post.User.Username},
 		})
 	}
 

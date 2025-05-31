@@ -72,3 +72,7 @@ func RequireAuth(c *gin.Context) {
 		})
 	}
 }
+
+func WithUserRLS() {
+
+}
