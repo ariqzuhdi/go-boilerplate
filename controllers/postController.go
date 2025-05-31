@@ -10,6 +10,7 @@ import (
 	"github.com/cheeszy/go-crud/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 func NotFoundHandler(c *gin.Context) {
@@ -19,25 +20,27 @@ func NotFoundHandler(c *gin.Context) {
 }
 
 func PostsCreate(c *gin.Context) {
+
+	db := c.MustGet("db").(*gorm.DB)
+
 	// Get data off requests body
 	var body struct {
-		Body  string
 		Title string
+		Body  string
 	}
 
-	c.Bind(&body)
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request body"})
+		return
+	}
 
-	userIDInterface, exists := c.Get("userID")
+	userIDAny, exists := c.Get("userID")
 	if !exists {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	userID, ok := userIDInterface.(uuid.UUID)
-	if !ok {
-		c.JSON(500, gin.H{"error": "Invalid user ID type"})
-		return
-	}
+	userID := userIDAny.(uuid.UUID)
 
 	post := models.Post{
 		Title:  body.Title,
@@ -45,13 +48,12 @@ func PostsCreate(c *gin.Context) {
 		UserID: userID,
 	}
 
-	result := initializers.DB.Create(&post)
-	if result.Error != nil {
-		c.Status(400)
+	if err := db.Create(&post).Error; err != nil {
+		c.JSON(400, gin.H{"error": "Failed to create post"})
 		return
 	}
 
-	initializers.DB.Preload("User").First(&post, post.ID)
+	db.Preload("User").First(&post, post.ID)
 
 	postResponse := dto.PostResponse{
 		ID:    post.ID,
@@ -65,78 +67,45 @@ func PostsCreate(c *gin.Context) {
 	})
 }
 
-func PostsShow(c *gin.Context) {
+func PostsShowById(c *gin.Context) {
 
-	userIDInterface, exists := c.Get("userID")
-	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	userID, ok := userIDInterface.(uint)
-	if !ok {
-		c.JSON(500, gin.H{"error": "Invalid user ID type"})
-		return
-	}
-
-	// Get the id of url
+	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
 
-	var post []models.Post
-	result := initializers.DB.Where("id = ? AND user_id = ?", id, userID).First(&post, id)
+	var post models.Post
+
+	result := db.First(&post, "id = ?", id)
 	if result.Error != nil {
 		c.JSON(404, gin.H{"error": "Post not found"})
 		return
 	}
 
+	postResponse := dto.PostResponse{
+		ID:    post.ID,
+		Title: post.Title,
+		Body:  post.Body, // Initialize with zero value
+	}
+
 	c.JSON(200, gin.H{
-		"post": post,
+		"post": postResponse,
 	})
 }
 
-func PostsShowAll(c *gin.Context) {
+func PostsShowAllPosts(c *gin.Context) {
 
-	userIDInterface, exists := c.Get("userID")
-	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	userID, ok := userIDInterface.(uuid.UUID)
-	if !ok {
-		c.JSON(500, gin.H{"error": "Invalid user ID type"})
-		return
-	}
-
-	// Get the id of url
+	db := c.MustGet("db").(*gorm.DB)
 	username := c.Param("username")
 
 	// take user from username
 	var user models.User
 
-	if err := initializers.DB.Where("username = ?", username).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "User not found",
-		})
-		return
-	}
-
-	if user.ID != userID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Forbidden: You can't access this resource",
-		})
-		return
-	}
-
-	var posts []models.Post
-	result := initializers.DB.Preload("User").Where("user_id = ?", userID).Find(&posts)
-	if result.Error != nil {
-		c.JSON(404, gin.H{"error": "Post not found"})
+	if err := db.Preload("Posts").Where("username = ?", username).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
 	var postResponses []dto.PostResponse
-	for _, post := range posts {
+	for _, post := range user.Posts {
 		postResponses = append(postResponses, dto.PostResponse{
 			ID:    post.ID,
 			Title: post.Title,
@@ -152,17 +121,7 @@ func PostsShowAll(c *gin.Context) {
 
 func PostsUpdate(c *gin.Context) {
 
-	userIDInterface, exists := c.Get("userID")
-	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	userID, ok := userIDInterface.(uint)
-	if !ok {
-		c.JSON(500, gin.H{"error": "Invalid user ID type"})
-		return
-	}
+	db := c.MustGet("db").(*gorm.DB)
 
 	// Get the id of url
 	id := c.Param("id")
@@ -177,8 +136,8 @@ func PostsUpdate(c *gin.Context) {
 	c.Bind(&body)
 
 	// find the post were updating
-	var post []models.Post
-	result := initializers.DB.Where("id = ? AND user_id = ?", id, userID).First(&post, id)
+	var post models.Post
+	result := db.Where("id = ?", id).First(&post)
 	if result.Error != nil {
 		c.JSON(401, gin.H{
 			"error": "Unauthorized",
@@ -186,34 +145,29 @@ func PostsUpdate(c *gin.Context) {
 		return
 	}
 
-	initializers.DB.Where("id = ? AND user_id = ?", id, userID).Model(&post).Updates(models.Post{
+	db.Where("id = ?", id).Model(&post).Updates(models.Post{
 		Title: body.Title, Body: body.Body,
 	})
 
-	// updating
+	postResponse := dto.PostResponse{
+		ID:    post.ID,
+		Title: body.Title,
+		Body:  body.Body,
+	}
+
 	c.JSON(200, gin.H{
-		"post": post,
+		"post": postResponse,
 	})
 }
 
 func PostsDelete(c *gin.Context) {
 
-	userIDInterface, exists := c.Get("userID")
-	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	userID, ok := userIDInterface.(uint)
-	if !ok {
-		c.JSON(500, gin.H{"error": "Invalid user ID type"})
-		return
-	}
+	db := c.MustGet("db").(*gorm.DB)
 
 	id := c.Param("id")
 	var post models.Post
 
-	result := initializers.DB.Where("id = ? AND user_id = ?", id, userID).Delete(&post, id)
+	result := db.Where("id = ?", id).Delete(&post)
 
 	if result.Error != nil {
 		c.JSON(500, gin.H{"error": "Failed to delete post"})

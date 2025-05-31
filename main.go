@@ -23,10 +23,11 @@ func main() {
 	// routes that need middleware
 	authorized := router.Group("/")
 	authorized.Use(middleware.RequireAuth)
+	authorized.Use(middleware.RequireRLS)
 	{
 		authorized.POST("/posts", controllers.PostsCreate)
-		authorized.GET("/post/:id", controllers.PostsShow)
-		authorized.GET("/:username", controllers.PostsShowAll)
+		authorized.GET("/post/:id", controllers.PostsShowById)
+		authorized.GET("/:username", controllers.PostsShowAllPosts)
 		authorized.PUT("/post/:id", controllers.PostsUpdate)
 		authorized.DELETE("/post/:id", controllers.PostsDelete)
 		authorized.POST("/logout", controllers.Logout)
