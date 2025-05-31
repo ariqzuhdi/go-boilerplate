@@ -34,9 +34,9 @@ func main() {
 	}
 
 	// Posts
-	router.GET("/posts", controllers.PostsIndex)
 	router.GET("/monkeytype/", controllers.MonkeyAPI)
 	router.NoRoute(controllers.NotFoundHandler)
+	router.GET("/posts", controllers.PostsIndex)
 
 	router.Run()
 }

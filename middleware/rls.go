@@ -15,7 +15,7 @@ func SetCurrentUserDB(db *gorm.DB, userID uuid.UUID) *gorm.DB {
 }
 
 func RequireRLS(c *gin.Context) {
-	// Ambil userID dari context
+	// grab userID from the context
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -24,7 +24,7 @@ func RequireRLS(c *gin.Context) {
 		return
 	}
 
-	// Konversi userID ke uuid.UUID
+	// convert userID to uuid.UUID
 	userUUID, ok := userID.(uuid.UUID)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -33,7 +33,7 @@ func RequireRLS(c *gin.Context) {
 		return
 	}
 
-	// Set RLS untuk user yang sedang login
+	// set the current user in the database session
 	db := SetCurrentUserDB(initializers.DB.Session(&gorm.Session{}), userUUID)
 
 	c.Set("db", db)

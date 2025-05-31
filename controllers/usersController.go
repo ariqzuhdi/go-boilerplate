@@ -86,8 +86,8 @@ func Login(c *gin.Context) {
 
 	// create JWT token using user ID as sub
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,                               // user ID sebagai subject
-		"exp": time.Now().Add(time.Hour * 24).Unix(), // token expired 24 jam
+		"sub": user.ID,                               // user ID as subject
+		"exp": time.Now().Add(time.Hour * 24).Unix(), // token expired 24 hours later
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -96,7 +96,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// return token ke client
+	// return token to client
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 	})

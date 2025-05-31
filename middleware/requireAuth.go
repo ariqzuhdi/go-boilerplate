@@ -12,7 +12,7 @@ import (
 )
 
 func RequireAuth(c *gin.Context) {
-	// Ambil header Authorization
+	// take the Authorization header from the request
 	authHeader := c.GetHeader("Authorization")
 
 	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
@@ -22,16 +22,16 @@ func RequireAuth(c *gin.Context) {
 		return
 	}
 
-	// Ambil token string tanpa "Bearer "
+	// take token from the Authorization header
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
 	// Parse token dengan fungsi verifikasi secret
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Pastikan metode signing adalah HMAC
+		// hmac method check
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		// Kunci rahasia JWT (harus sama dengan yang di login)
+		// secret key from environment variable
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	})
 
@@ -42,9 +42,10 @@ func RequireAuth(c *gin.Context) {
 		return
 	}
 
-	// Ambil klaim dari token
+	// grab claims from the token
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		// Ambil userID dari claim "sub" dan konversi ke uint
+		// grab user ID from claims
+		// claims["sub"] is the subject, which we set to user ID when creating the token
 		userIDStr, ok := claims["sub"].(string)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -60,10 +61,11 @@ func RequireAuth(c *gin.Context) {
 			})
 			return
 		}
-		// Simpan userID ke context agar bisa dipakai di handler lain
+		// save user ID to context for later use
+		// this allows us to access user ID in handlers
 		c.Set("userID", userID)
 
-		// Lanjut request
+		// next middleware or handler
 		c.Next()
 
 	} else {

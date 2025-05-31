@@ -96,7 +96,7 @@ func PostsShowAllPosts(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 	username := c.Param("username")
 
-	// take user from username
+	// take user from username param
 	var user models.User
 
 	if err := db.Preload("Posts").Where("username = ?", username).First(&user).Error; err != nil {
@@ -183,6 +183,8 @@ func PostsDelete(c *gin.Context) {
 
 }
 
+// BE CAREFUL: THIS IS NOT PROTECTED
+// It is just for testing purposes
 func PostsIndex(c *gin.Context) {
 	//Get the posts
 	var posts []models.Post
@@ -213,6 +215,6 @@ func MonkeyAPI(c *gin.Context) {
 		return
 	}
 
-	// Forward response eksternal ke client
+	// forward the response
 	c.Data(resp.StatusCode, "application/json", body)
 }
