@@ -14,7 +14,7 @@ import (
 )
 
 func NotFoundHandler(c *gin.Context) {
-	c.JSON(404, gin.H{
+	c.JSON(http.StatusNotFound, gin.H{
 		"error": "URL not found.",
 	})
 }
@@ -30,13 +30,13 @@ func PostsCreate(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
 	userIDAny, exists := c.Get("userID")
 	if !exists {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
@@ -49,7 +49,7 @@ func PostsCreate(c *gin.Context) {
 	}
 
 	if err := db.Create(&post).Error; err != nil {
-		c.JSON(400, gin.H{"error": "Failed to create post"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to create post"})
 		return
 	}
 
@@ -76,7 +76,7 @@ func PostsShowById(c *gin.Context) {
 
 	result := db.First(&post, "id = ?", id)
 	if result.Error != nil {
-		c.JSON(404, gin.H{"error": "Post not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
 		return
 	}
 
@@ -139,7 +139,7 @@ func PostsUpdate(c *gin.Context) {
 	var post models.Post
 	result := db.Where("id = ?", id).First(&post)
 	if result.Error != nil {
-		c.JSON(401, gin.H{
+		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "Unauthorized",
 		})
 		return
@@ -170,16 +170,16 @@ func PostsDelete(c *gin.Context) {
 	result := db.Where("id = ?", id).Delete(&post)
 
 	if result.Error != nil {
-		c.JSON(500, gin.H{"error": "Failed to delete post"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete post"})
 		return
 	}
 
 	if result.RowsAffected == 0 {
-		c.JSON(404, gin.H{"error": "Post not found or unauthorized"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found or unauthorized"})
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "Deleted"})
+	c.JSON(http.StatusAccepted, gin.H{"message": "Deleted"})
 
 }
 
@@ -191,7 +191,7 @@ func PostsIndex(c *gin.Context) {
 	initializers.DB.Find(&posts)
 
 	//Respond with them
-	c.JSON(200, gin.H{
+	c.JSON(http.StatusAccepted, gin.H{
 		"post": posts,
 	})
 }
@@ -204,14 +204,14 @@ func MonkeyAPI(c *gin.Context) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to read response body"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read response body"})
 		return
 	}
 
