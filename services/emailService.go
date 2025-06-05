@@ -19,7 +19,7 @@ func GenerateToken(n int) (string, error) {
 }
 
 func SendVerificationEmail(toEmail, token string) error {
-	link := fmt.Sprintf("http://localhost:8080/verify?token=%s", token)
+	link := fmt.Sprintf("http://localhost:3000/verify?token=%s", token)
 	subject := "Email Verification"
 	body := fmt.Sprintf("Please verify your email by clicking the following link: %s", link)
 

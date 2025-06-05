@@ -19,6 +19,7 @@ func main() {
 	// Users
 	router.POST("/register", controllers.Register)
 	router.POST("/login", controllers.Login)
+	router.POST("/resend-verification", controllers.ResendVerificationEmail)
 
 	// routes that need middleware
 	authorized := router.Group("/")
@@ -37,7 +38,7 @@ func main() {
 	router.GET("/monkeytype/", controllers.MonkeyAPI)
 	router.NoRoute(controllers.NotFoundHandler)
 	router.GET("/posts", controllers.PostsIndex)
-	router.GET("/email", controllers.VerifyEmail)
+	router.GET("/verify", controllers.VerifyEmail)
 
 	router.Run()
 }

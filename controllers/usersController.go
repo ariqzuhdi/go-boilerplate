@@ -46,11 +46,6 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	if err := services.SendVerificationEmail(user.Email, token); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not send verification email"})
-		return
-	}
-
 	user.VerificationToken = token
 	user.VerificationExpiresAt = time.Now().Add(15 * time.Minute) // Token valid for 24 hours
 
@@ -127,25 +122,98 @@ func Logout(c *gin.Context) {
 }
 
 func VerifyEmail(c *gin.Context) {
-	// Get the user ID from the query parameter
-	userID := c.Query("user_id")
-	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
-		return
+
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Token is required"})
 	}
 
 	var user models.User
-	if err := initializers.DB.Where("id = ?", userID).First(&user).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+	if err := initializers.DB.Where("verification_token = ?", token).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found or token is invalid"})
+		return
+	}
+
+	if time.Now().After(user.VerificationExpiresAt) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Verification token has expired"})
 		return
 	}
 
 	// Update the user's IsVerified status
 	user.IsVerified = true
+	user.VerificationExpiresAt = time.Time{}
+	user.VerificationToken = ""
+	user.ResendCount = 0
+
 	if err := initializers.DB.Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not verify email"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
+}
+
+func ResendVerificationEmail(c *gin.Context) {
+
+	var input struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user models.User
+	if err := initializers.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	if user.IsVerified {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User is already verified"})
+		return
+	}
+
+	const maxResendCount = 3
+	const cooldownPeriod = 24 * time.Hour
+
+	if time.Since(user.VerificationExpiresAt) > cooldownPeriod {
+		user.ResendCount = 0
+	}
+
+	if user.ResendCount >= maxResendCount {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Maximum resend limit reached. Try again 24 hours later."})
+		return
+	}
+
+	token, err := services.GenerateToken(32)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+		return
+	}
+
+	expiry := time.Now().Add(15 * time.Minute)
+	user.VerificationToken = token
+
+	user.VerificationExpiresAt = expiry
+	user.ResendCount++
+	user.LastVerificationSentAt = time.Now()
+
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not update user"})
+		return
+	}
+
+	go services.SendVerificationEmail(user.Email, token)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":         "Verification email resent successfully",
+		"expires_at":      user.VerificationExpiresAt,
+		"resend_count":    user.ResendCount,
+		"resend_limit":    maxResendCount,
+		"remaining_quota": maxResendCount - user.ResendCount,
+	})
+
 }
