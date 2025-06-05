@@ -133,7 +133,10 @@ func PostsUpdate(c *gin.Context) {
 		Title string
 	}
 
-	c.Bind(&body)
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
 
 	// find the post were updating
 	var post models.Post
@@ -151,8 +154,8 @@ func PostsUpdate(c *gin.Context) {
 
 	postResponse := dto.PostResponse{
 		ID:    post.ID,
-		Title: body.Title,
-		Body:  body.Body,
+		Title: post.Title,
+		Body:  post.Body,
 	}
 
 	c.JSON(200, gin.H{

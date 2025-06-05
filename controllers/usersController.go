@@ -7,6 +7,7 @@ import (
 
 	"github.com/cheeszy/go-crud/initializers"
 	"github.com/cheeszy/go-crud/models"
+	"github.com/cheeszy/go-crud/services"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -34,13 +35,30 @@ func Register(c *gin.Context) {
 	}
 
 	result := initializers.DB.Create(&user)
-
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User registered successfully."})
+	token, err := services.GenerateToken(32)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
+		return
+	}
+
+	if err := services.SendVerificationEmail(user.Email, token); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not send verification email"})
+		return
+	}
+
+	user.VerificationToken = token
+	user.VerificationExpiresAt = time.Now().Add(15 * time.Minute) // Token valid for 24 hours
+
+	initializers.DB.Save(&user)
+
+	go services.SendVerificationEmail(user.Email, token)
+
+	c.JSON(http.StatusOK, gin.H{"message": "User registered. Please check your email to verify your account."})
 }
 
 func Users(c *gin.Context) {
@@ -106,4 +124,28 @@ func Logout(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{
 		"text": "Bye",
 	})
+}
+
+func VerifyEmail(c *gin.Context) {
+	// Get the user ID from the query parameter
+	userID := c.Query("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
+		return
+	}
+
+	var user models.User
+	if err := initializers.DB.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Update the user's IsVerified status
+	user.IsVerified = true
+	if err := initializers.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not verify email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
 }

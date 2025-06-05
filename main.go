@@ -37,6 +37,7 @@ func main() {
 	router.GET("/monkeytype/", controllers.MonkeyAPI)
 	router.NoRoute(controllers.NotFoundHandler)
 	router.GET("/posts", controllers.PostsIndex)
+	router.GET("/email", controllers.VerifyEmail)
 
 	router.Run()
 }
