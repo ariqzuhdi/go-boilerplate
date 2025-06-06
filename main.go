@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/cheeszy/go-crud/controllers"
-	"github.com/cheeszy/go-crud/initializers"
-	"github.com/cheeszy/go-crud/middleware"
+	"github.com/cheeszy/journaling/controllers"
+	"github.com/cheeszy/journaling/initializers"
+	"github.com/cheeszy/journaling/middleware"
 	"github.com/gin-gonic/gin"
 )
 

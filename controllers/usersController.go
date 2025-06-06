@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/cheeszy/go-crud/initializers"
-	"github.com/cheeszy/go-crud/models"
-	"github.com/cheeszy/go-crud/services"
+	"github.com/cheeszy/journaling/initializers"
+	"github.com/cheeszy/journaling/models"
+	"github.com/cheeszy/journaling/services"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"

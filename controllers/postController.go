@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/cheeszy/go-crud/dto"
-	"github.com/cheeszy/go-crud/initializers"
-	"github.com/cheeszy/go-crud/models"
+	"github.com/cheeszy/journaling/dto"
+	"github.com/cheeszy/journaling/initializers"
+	"github.com/cheeszy/journaling/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"

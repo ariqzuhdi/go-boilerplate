@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/cheeszy/go-crud/initializers"
-	"github.com/cheeszy/go-crud/models"
+	"github.com/cheeszy/journaling/initializers"
+	"github.com/cheeszy/journaling/models"
 )
 
 func init() {
