@@ -39,6 +39,6 @@ func main() {
 	router.NoRoute(controllers.NotFoundHandler)
 	router.GET("/posts", controllers.PostsIndex)
 	router.GET("/verify", controllers.VerifyEmail)
-
+	router.GET("/", controllers.HomeHandler)
 	router.Run(":3000") // Run on port 3000
 }
