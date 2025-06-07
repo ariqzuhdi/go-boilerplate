@@ -1,4 +1,5 @@
-name: Build and push to ECR
+name: Build and Deploy to ECR and EC2
+
 on:
   push:
     branches:
@@ -39,10 +40,10 @@ jobs:
           IMAGE_URI=${{ secrets.AWS_ECR_REPOSITORY_URI }}
           docker push $IMAGE_URI:latest
 
-jobs:
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
+    needs: build
     environment: production
     steps:
       - name: SSH into EC2 instance and deploy container
@@ -57,4 +58,3 @@ jobs:
             docker stop journaling-app || true
             docker rm journaling-app || true
             docker run -d --name journaling-app -p 3000:3000 ${{ secrets.AWS_ECR_REPOSITORY_URI }}:latest
-
