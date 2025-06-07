@@ -38,3 +38,23 @@ jobs:
         run: |
           IMAGE_URI=${{ secrets.AWS_ECR_REPOSITORY_URI }}
           docker push $IMAGE_URI:latest
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    environment: production  # ⬅️ Manual approval terjadi di sini
+    steps:
+      - name: SSH into EC2 instance and deploy container
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_PUBLIC_IP }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REPOSITORY_URI }}
+            docker pull ${{ secrets.AWS_ECR_REPOSITORY_URI }}:latest
+            docker stop journaling-app || true
+            docker rm journaling-app || true
+            docker run -d --name journaling-app -p 3000:3000 ${{ secrets.AWS_ECR_REPOSITORY_URI }}:latest
+
