@@ -60,4 +60,15 @@ jobs:
             docker pull ${{ secrets.AWS_ECR_REPOSITORY_URI }}:latest
             docker stop journaling-app || true
             docker rm journaling-app || true
-            docker run -d --name journaling-app -p 3000:3000 ${{ secrets.AWS_ECR_REPOSITORY_URI }}:latest
+            docker run -d \
+            --name journaling-app \
+            -p 3000:3000 \
+            -e PORT=${{ secrets.PORT }} \
+            -e DB_URL=${{ secrets.DB_URL }} \
+            -e MONKEYTYPE_API_KEY=${{ secrets.MONKEYTYPE_API_KEY }} \
+            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            -e EMAIL_FROM=${{ secrets.EMAIL_FROM }} \
+            -e EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }} \
+            -e SMTP_HOST=${{ secrets.SMTP_HOST }} \
+            -e SMTP_PORT=${{ secrets.SMTP_PORT }} \
+            ${{ secrets.AWS_ECR_REPOSITORY_URI }}:latest
