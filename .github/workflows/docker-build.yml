@@ -43,7 +43,7 @@ jobs:
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    environment: production  # ⬅️ Manual approval terjadi di sini
+    environment: production
     steps:
       - name: SSH into EC2 instance and deploy container
         uses: appleboy/ssh-action@master
