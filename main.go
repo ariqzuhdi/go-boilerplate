@@ -40,5 +40,5 @@ func main() {
 	router.GET("/posts", controllers.PostsIndex)
 	router.GET("/verify", controllers.VerifyEmail)
 
-	router.Run()
+	router.Run(":3000") // Run on port 3000
 }
