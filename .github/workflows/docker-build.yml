@@ -62,6 +62,7 @@ jobs:
             docker rm journaling-app || true
             docker run -d \
               --name journaling-app \
+              --restart unless-stopped \
               -p 3000:3000 \
               -e PORT='${{ secrets.PORT }}' \
               -e DB_URL='${{ secrets.DB_URL }}' \
