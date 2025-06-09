@@ -11,7 +11,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    output:
+    outputs:
       image_tag: ${{ steps.set_image_tag.outputs.image_tag }}
     steps:
       - name: Checkout repo
