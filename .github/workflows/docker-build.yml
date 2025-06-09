@@ -66,12 +66,26 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
+            echo "Cleaning up Docker to free space..."
+            docker system prune -af
+            docker volume prune -f
+            docker builder prune -af
+
+            echo "Logging in to ECR..."
             IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
             REPO_URI="${{ secrets.AWS_ECR_REPOSITORY_URI }}"
+            echo "IMAGE_TAG is: $IMAGE_TAG"
             aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin $REPO_URI
+
+            echo "Pulling image $REPO_URI:$IMAGE_TAG ..."
             docker pull $REPO_URI:${IMAGE_TAG}
+
+            echo "Stopping and removing existing container if it exists"
             docker stop journaling-app || true
             docker rm journaling-app || true
+
+            echo "Running new container with image tag: ${IMAGE_TAG}"
             docker run -d \
               --name journaling-app \
               --restart unless-stopped \
