@@ -35,7 +35,6 @@ jobs:
       - name: Build and TAG Docker image
         run: |
             IMAGE_URI=${{ secrets.AWS_ECR_REPOSITORY_URI }}
-            docker tag journaling-app:latest $IMAGE_URI:latest
             docker buildx build --platform linux/arm64 -t journaling-app:latest --load . |
             docker tag journaling-app:latest $IMAGE_URI:latest
             docker tag journaling-app:latest $IMAGE_URI:${IMAGE_TAG}
