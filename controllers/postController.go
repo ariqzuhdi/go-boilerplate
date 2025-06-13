@@ -9,51 +9,47 @@ import (
 	"github.com/cheeszy/journaling/initializers"
 	"github.com/cheeszy/journaling/models"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
+// HandleNotFound returns a 404 response for unregistered routes
 func NotFoundHandler(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{
 		"error": "URL not found.",
 	})
 }
 
+// PostsCreate handles creation of a new post
 func PostsCreate(c *gin.Context) {
-
-	db := c.MustGet("db").(*gorm.DB)
-
-	// Get data off requests body
-	var body struct {
-		Title string
-		Body  string
+	var reqBody struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
 	}
 
-	if err := c.ShouldBindJSON(&body); err != nil {
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	userIDAny, exists := c.Get("userID")
+	user, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	userID := userIDAny.(uuid.UUID)
-
+	// Build the post
+	u := user.(models.User)
 	post := models.Post{
-		Title:  body.Title,
-		Body:   body.Body,
-		UserID: userID,
+		Title:  reqBody.Title,
+		Body:   reqBody.Body,
+		UserID: u.ID,
 	}
 
-	if err := db.Create(&post).Error; err != nil {
+	if err := initializers.DB.Create(&post).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to create post"})
 		return
 	}
 
-	db.Preload("User").First(&post, post.ID)
+	initializers.DB.Preload("User").First(&post, post.ID)
 
 	postResponse := dto.PostResponse{
 		ID:    post.ID,
@@ -61,21 +57,17 @@ func PostsCreate(c *gin.Context) {
 		Body:  post.Body,
 	}
 
-	// return it
-	c.JSON(200, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"post": postResponse,
 	})
 }
 
+// PostsShowById returns a single post by its ID
 func PostsShowById(c *gin.Context) {
-
-	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
-
 	var post models.Post
 
-	result := db.First(&post, "id = ?", id)
-	if result.Error != nil {
+	if err := initializers.DB.First(&post, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
 		return
 	}
@@ -83,95 +75,74 @@ func PostsShowById(c *gin.Context) {
 	postResponse := dto.PostResponse{
 		ID:    post.ID,
 		Title: post.Title,
-		Body:  post.Body, // Initialize with zero value
+		Body:  post.Body,
 	}
 
-	c.JSON(200, gin.H{
-		"post": postResponse,
-	})
+	c.JSON(http.StatusOK, gin.H{"post": postResponse})
 }
 
+// PostsShowAllPosts returns all posts from a user by their username
 func PostsShowAllPosts(c *gin.Context) {
-
-	db := c.MustGet("db").(*gorm.DB)
 	username := c.Param("username")
-
-	// take user from username param
 	var user models.User
 
-	if err := db.Preload("Posts").Where("username = ?", username).First(&user).Error; err != nil {
+	if err := initializers.DB.Preload("Posts").Where("username = ?", username).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	var postResponses []dto.PostResponse
+	postResponses := make([]dto.PostResponse, 0, len(user.Posts))
 	for _, post := range user.Posts {
 		postResponses = append(postResponses, dto.PostResponse{
 			ID:    post.ID,
 			Title: post.Title,
 			Body:  post.Body,
-			// User:  dto.UserResponse{Username: post.User.Username},
 		})
 	}
 
-	c.JSON(200, gin.H{
-		"posts": postResponses,
-	})
+	c.JSON(http.StatusOK, gin.H{"posts": postResponses})
 }
 
+// PostsUpdate modifies an existing post by ID
 func PostsUpdate(c *gin.Context) {
-
-	db := c.MustGet("db").(*gorm.DB)
-
-	// Get the id of url
 	id := c.Param("id")
 
-	// get the data off the req body
-
-	var body struct {
-		Body  string
-		Title string
+	var reqBody struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
 	}
 
-	if err := c.ShouldBindJSON(&body); err != nil {
+	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	// find the post were updating
 	var post models.Post
-	result := db.Where("id = ?", id).First(&post)
-	if result.Error != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorized",
-		})
+	if err := initializers.DB.First(&post, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
 		return
 	}
 
-	db.Where("id = ?", id).Model(&post).Updates(models.Post{
-		Title: body.Title, Body: body.Body,
+	initializers.DB.Model(&post).Updates(models.Post{
+		Title: reqBody.Title,
+		Body:  reqBody.Body,
 	})
 
 	postResponse := dto.PostResponse{
 		ID:    post.ID,
-		Title: post.Title,
-		Body:  post.Body,
+		Title: reqBody.Title,
+		Body:  reqBody.Body,
 	}
 
-	c.JSON(200, gin.H{
-		"post": postResponse,
-	})
+	c.JSON(http.StatusOK, gin.H{"post": postResponse})
 }
 
+// PostsDelete removes a post by ID
 func PostsDelete(c *gin.Context) {
-
-	db := c.MustGet("db").(*gorm.DB)
-
 	id := c.Param("id")
 	var post models.Post
 
-	result := db.Where("id = ?", id).Delete(&post)
-
+	result := initializers.DB.Where("id = ?", id).Delete(&post)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete post"})
 		return
@@ -183,28 +154,26 @@ func PostsDelete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "Deleted"})
-
 }
 
-// BE CAREFUL: THIS IS NOT PROTECTED
-// It is just for testing purposes
+// PostsIndex returns all posts in the database (for testing only)
 func PostsIndex(c *gin.Context) {
-	//Get the posts
 	var posts []models.Post
 	initializers.DB.Find(&posts)
 
-	//Respond with them
-	c.JSON(http.StatusAccepted, gin.H{
-		"post": posts,
+	c.JSON(http.StatusOK, gin.H{
+		"posts": posts,
 	})
 }
 
+// MonkeyAPI fetches data from MonkeyType's API
 func MonkeyAPI(c *gin.Context) {
 	apiKey := os.Getenv("MONKEYTYPE_API_KEY")
-	client := &http.Client{}
+
 	req, _ := http.NewRequest("GET", "https://api.monkeytype.com/users/personalBests?mode=time", nil)
 	req.Header.Add("Authorization", "ApeKey "+apiKey)
 
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -218,6 +187,5 @@ func MonkeyAPI(c *gin.Context) {
 		return
 	}
 
-	// forward the response
 	c.Data(resp.StatusCode, "application/json", body)
 }

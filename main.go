@@ -4,41 +4,49 @@ import (
 	"github.com/cheeszy/journaling/controllers"
 	"github.com/cheeszy/journaling/initializers"
 	"github.com/cheeszy/journaling/middleware"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
-func init() {
+func main() {
 	initializers.LoadEnvVariables()
 	initializers.ConnectToDB()
-}
-
-func main() {
 	router := gin.Default()
 
-	router.GET("/users", controllers.Users)
-	// Users
-	router.POST("/register", controllers.Register)
-	router.POST("/login", controllers.Login)
-	router.POST("/resend-verification", controllers.ResendVerificationEmail)
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
 
-	// routes that need middleware
-	authorized := router.Group("/")
+	// Public endpoints
+	api := router.Group("/api")
+	api.POST("/register", controllers.Register)
+	api.POST("/login", controllers.Login)
+	api.POST("/resend-verification", controllers.ResendVerificationEmail)
+	api.GET("/posts", controllers.PostsIndex)                 // all posts
+	api.GET("/user/:username", controllers.PostsShowAllPosts) // by username
+	api.GET("/posts/:id", controllers.PostsShowById)          // by ID
+	api.GET("/verify", controllers.VerifyEmail)
+	api.GET("/monkeytype", controllers.MonkeyAPI)
+	api.GET("/users", controllers.Users) // admin use
+
+	// Protected endpoints
+	authorized := router.Group("/api")
 	authorized.Use(middleware.RequireAuth)
 	authorized.Use(middleware.RequireRLS)
 	{
 		authorized.POST("/posts", controllers.PostsCreate)
-		authorized.GET("/post/:id", controllers.PostsShowById)
-		authorized.GET("/:username", controllers.PostsShowAllPosts)
-		authorized.PUT("/post/:id", controllers.PostsUpdate)
-		authorized.DELETE("/post/:id", controllers.PostsDelete)
+		authorized.PUT("/posts/:id", controllers.PostsUpdate)
+		authorized.DELETE("/posts/:id", controllers.PostsDelete)
 		authorized.POST("/logout", controllers.Logout)
+		authorized.GET("/", controllers.HomeHandler)
+		authorized.GET("/user", controllers.GetCurrentUser)
+
 	}
 
-	// Posts
-	router.GET("/monkeytype/", controllers.MonkeyAPI)
 	router.NoRoute(controllers.NotFoundHandler)
-	router.GET("/posts", controllers.PostsIndex)
-	router.GET("/verify", controllers.VerifyEmail)
-	router.GET("/", controllers.HomeHandler)
-	router.Run(":3000") // Run on port 3000
+
+	router.Run(":3000")
 }

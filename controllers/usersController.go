@@ -111,7 +111,8 @@ func Login(c *gin.Context) {
 
 	// return token to client
 	c.JSON(http.StatusOK, gin.H{
-		"token": tokenString,
+		"token":      tokenString,
+		"expires_in": time.Now().Add(time.Hour * 24).Unix(),
 	})
 }
 
@@ -126,6 +127,7 @@ func VerifyEmail(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Token is required"})
+		return
 	}
 
 	var user models.User
@@ -151,6 +153,14 @@ func VerifyEmail(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
+}
+
+func GetCurrentUser(c *gin.Context) {
+	user := c.MustGet("user")
+
+	c.JSON(200, gin.H{
+		"user": user,
+	})
 }
 
 func ResendVerificationEmail(c *gin.Context) {
