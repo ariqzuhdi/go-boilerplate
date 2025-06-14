@@ -8,14 +8,14 @@ import (
 )
 
 type Post struct {
-	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID        uuid.UUID      `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	CreatedAt time.Time      `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
-	Title  string    `gorm:"not null"`
-	Body   string    `gorm:"type:text"`
-	UserID uuid.UUID `gorm:"type:uuid;not null"` // foreign key
+	Title  string    `gorm:"not null" json:"title"`
+	Body   string    `gorm:"type:text" json:"body"`
+	UserID uuid.UUID `gorm:"type:uuid;not null" json:"userId"`
 
-	User User `gorm:"foreignKey:UserID"` // relasi belongs to User
+	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }

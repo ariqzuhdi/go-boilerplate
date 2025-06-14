@@ -3,6 +3,8 @@ package middleware
 import (
 	"net/http"
 
+	"fmt"
+
 	"github.com/cheeszy/journaling/initializers"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -10,7 +12,7 @@ import (
 )
 
 func SetCurrentUserDB(db *gorm.DB, userID uuid.UUID) *gorm.DB {
-	db.Exec("SET app.current_user_id = ?", userID.String())
+	db.Exec(fmt.Sprintf("SET app.current_user_id = '%s'", userID.String()))
 	return db
 }
 

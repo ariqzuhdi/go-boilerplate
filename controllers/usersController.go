@@ -99,7 +99,7 @@ func Login(c *gin.Context) {
 
 	// create JWT token using user ID as sub
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID,                               // user ID as subject
+		"sub": user.ID.String(),                      // user ID as subject
 		"exp": time.Now().Add(time.Hour * 24).Unix(), // token expired 24 hours later
 	})
 
@@ -109,6 +109,12 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	c.SetCookie(
+		"token", tokenString,
+		3600*24,              // 1 day
+		"/", "", false, true, // secure=true (gunakan HTTPS), httpOnly=true
+	)
+
 	// return token to client
 	c.JSON(http.StatusOK, gin.H{
 		"token":      tokenString,
@@ -117,9 +123,8 @@ func Login(c *gin.Context) {
 }
 
 func Logout(c *gin.Context) {
-	c.JSON(http.StatusAccepted, gin.H{
-		"text": "Bye",
-	})
+	c.SetCookie("token", "", -1, "/", "", true, true)
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
 func VerifyEmail(c *gin.Context) {
@@ -158,9 +163,7 @@ func VerifyEmail(c *gin.Context) {
 func GetCurrentUser(c *gin.Context) {
 	user := c.MustGet("user")
 
-	c.JSON(200, gin.H{
-		"user": user,
-	})
+	c.JSON(200, user)
 }
 
 func ResendVerificationEmail(c *gin.Context) {

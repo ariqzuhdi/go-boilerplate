@@ -14,17 +14,31 @@ import (
 )
 
 func RequireAuth(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
+	var tokenString string
 
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+	// Coba ambil dari Authorization header
+	authHeader := c.GetHeader("Authorization")
+	fmt.Println("Auth Header:", authHeader)
+
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+		fmt.Println("Cookie:", tokenString)
+	} else {
+		// Coba ambil dari cookie
+		cookie, err := c.Cookie("token")
+		if err == nil {
+			tokenString = cookie
+		}
+	}
+
+	if tokenString == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorized: Token missing",
+			"error": "Unauthorized: Token not found",
 		})
 		return
 	}
 
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
+	// Lanjut validasi JWT seperti biasa
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
@@ -56,7 +70,6 @@ func RequireAuth(c *gin.Context) {
 			return
 		}
 
-		// query the user from the database to context
 		var user models.User
 		if err := initializers.DB.First(&user, "id = ?", userID).Error; err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -65,9 +78,8 @@ func RequireAuth(c *gin.Context) {
 			return
 		}
 
-		// save to context
 		c.Set("user", user)
-
+		c.Set("userID", userID)
 		c.Next()
 		return
 	}

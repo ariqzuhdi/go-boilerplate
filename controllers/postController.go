@@ -6,20 +6,20 @@ import (
 	"os"
 
 	"github.com/cheeszy/journaling/dto"
-	"github.com/cheeszy/journaling/initializers"
 	"github.com/cheeszy/journaling/models"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-// HandleNotFound returns a 404 response for unregistered routes
 func NotFoundHandler(c *gin.Context) {
 	c.JSON(http.StatusNotFound, gin.H{
 		"error": "URL not found.",
 	})
 }
 
-// PostsCreate handles creation of a new post
 func PostsCreate(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
+
 	var reqBody struct {
 		Title string `json:"title"`
 		Body  string `json:"body"`
@@ -36,25 +36,28 @@ func PostsCreate(c *gin.Context) {
 		return
 	}
 
-	// Build the post
 	u := user.(models.User)
 	post := models.Post{
-		Title:  reqBody.Title,
-		Body:   reqBody.Body,
-		UserID: u.ID,
+		Title:     reqBody.Title,
+		Body:      reqBody.Body,
+		UserID:    u.ID,
+		CreatedAt: u.CreatedAt,
+		UpdatedAt: u.UpdatedAt,
 	}
 
-	if err := initializers.DB.Create(&post).Error; err != nil {
+	if err := db.Create(&post).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to create post"})
 		return
 	}
 
-	initializers.DB.Preload("User").First(&post, post.ID)
+	db.Preload("User").First(&post, post.ID)
 
 	postResponse := dto.PostResponse{
-		ID:    post.ID,
-		Title: post.Title,
-		Body:  post.Body,
+		ID:        post.ID,
+		Title:     post.Title,
+		Body:      post.Body,
+		CreatedAt: post.CreatedAt,
+		UpdatedAt: post.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -62,12 +65,12 @@ func PostsCreate(c *gin.Context) {
 	})
 }
 
-// PostsShowById returns a single post by its ID
 func PostsShowById(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
 	var post models.Post
 
-	if err := initializers.DB.First(&post, "id = ?", id).Error; err != nil {
+	if err := db.First(&post, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
 		return
 	}
@@ -81,12 +84,25 @@ func PostsShowById(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"post": postResponse})
 }
 
-// PostsShowAllPosts returns all posts from a user by their username
 func PostsShowAllPosts(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
 	username := c.Param("username")
-	var user models.User
 
-	if err := initializers.DB.Preload("Posts").Where("username = ?", username).First(&user).Error; err != nil {
+	// Auth check
+	currentUser, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userInToken := currentUser.(models.User)
+
+	if userInToken.Username != username {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	var user models.User
+	if err := db.Preload("Posts").Where("username = ?", username).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
@@ -94,17 +110,19 @@ func PostsShowAllPosts(c *gin.Context) {
 	postResponses := make([]dto.PostResponse, 0, len(user.Posts))
 	for _, post := range user.Posts {
 		postResponses = append(postResponses, dto.PostResponse{
-			ID:    post.ID,
-			Title: post.Title,
-			Body:  post.Body,
+			ID:        post.ID,
+			Title:     post.Title,
+			Body:      post.Body,
+			CreatedAt: post.CreatedAt,
+			UpdatedAt: post.UpdatedAt,
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"posts": postResponses})
+	c.JSON(http.StatusOK, gin.H{"data": postResponses})
 }
 
-// PostsUpdate modifies an existing post by ID
 func PostsUpdate(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
 
 	var reqBody struct {
@@ -118,31 +136,33 @@ func PostsUpdate(c *gin.Context) {
 	}
 
 	var post models.Post
-	if err := initializers.DB.First(&post, "id = ?", id).Error; err != nil {
+	if err := db.First(&post, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Post not found"})
 		return
 	}
 
-	initializers.DB.Model(&post).Updates(models.Post{
+	db.Model(&post).Updates(models.Post{
 		Title: reqBody.Title,
 		Body:  reqBody.Body,
 	})
 
 	postResponse := dto.PostResponse{
-		ID:    post.ID,
-		Title: reqBody.Title,
-		Body:  reqBody.Body,
+		ID:        post.ID,
+		Title:     reqBody.Title,
+		Body:      reqBody.Body,
+		CreatedAt: post.CreatedAt,
+		UpdatedAt: post.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, gin.H{"post": postResponse})
 }
 
-// PostsDelete removes a post by ID
 func PostsDelete(c *gin.Context) {
+	db := c.MustGet("db").(*gorm.DB)
 	id := c.Param("id")
 	var post models.Post
 
-	result := initializers.DB.Where("id = ?", id).Delete(&post)
+	result := db.Where("id = ?", id).Delete(&post)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete post"})
 		return
@@ -156,17 +176,17 @@ func PostsDelete(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"message": "Deleted"})
 }
 
-// PostsIndex returns all posts in the database (for testing only)
 func PostsIndex(c *gin.Context) {
+	// NOTE: Ini hanya untuk testing global, jadi tidak pakai RLS
+	db := c.MustGet("db").(*gorm.DB)
 	var posts []models.Post
-	initializers.DB.Find(&posts)
+	db.Find(&posts)
 
 	c.JSON(http.StatusOK, gin.H{
 		"posts": posts,
 	})
 }
 
-// MonkeyAPI fetches data from MonkeyType's API
 func MonkeyAPI(c *gin.Context) {
 	apiKey := os.Getenv("MONKEYTYPE_API_KEY")
 
