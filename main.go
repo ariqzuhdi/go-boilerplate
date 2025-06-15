@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/cheeszy/journaling/controllers"
@@ -30,6 +32,7 @@ func main() {
 	api.POST("/login", controllers.Login)
 	api.POST("/resend-verification", controllers.ResendVerificationEmail)
 	api.GET("/posts", controllers.PostsIndex) // all posts
+	api.POST("/reset-password", controllers.ResetPasswordWithRecoveryKey)
 	// api.GET("/posts/:id", controllers.PostsShowById) // by ID
 	api.GET("/verify", controllers.VerifyEmail)
 	api.GET("/monkeytype", controllers.MonkeyAPI)
@@ -51,6 +54,6 @@ func main() {
 	}
 
 	router.NoRoute(controllers.NotFoundHandler)
-
+	fmt.Println(os.Getenv("DOMAIN"))
 	router.Run(":3000")
 }

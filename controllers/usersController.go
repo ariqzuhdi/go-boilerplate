@@ -8,6 +8,7 @@ import (
 	"github.com/cheeszy/journaling/initializers"
 	"github.com/cheeszy/journaling/models"
 	"github.com/cheeszy/journaling/services"
+	"github.com/cheeszy/journaling/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -28,32 +29,44 @@ func Register(c *gin.Context) {
 	// Hash password
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 
-	user := models.User{
-		Username: input.Username,
-		Email:    input.Email,
-		Password: string(hashedPassword),
-	}
-
-	result := initializers.DB.Create(&user)
-	if result.Error != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": result.Error.Error()})
+	// Generate recovery key
+	recoveryKey, err := utils.GenerateRecoveryKey()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate recovery key"})
 		return
 	}
 
+	// Buat user baru
+	user := models.User{
+		Username:    input.Username,
+		Email:       input.Email,
+		Password:    string(hashedPassword),
+		RecoveryKey: recoveryKey, // Plaintext (bisa kamu hash nanti kalau mau lebih aman)
+	}
+
+	// Simpan user
+	if err := initializers.DB.Create(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Token verifikasi
 	token, err := services.GenerateToken(32)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate token"})
 		return
 	}
-
 	user.VerificationToken = token
-	user.VerificationExpiresAt = time.Now().Add(15 * time.Minute) // Token valid for 24 hours
+	user.VerificationExpiresAt = time.Now().Add(15 * time.Minute)
 
 	initializers.DB.Save(&user)
+	go services.SendVerificationEmail(user.Email, token, user.RecoveryKey)
 
-	go services.SendVerificationEmail(user.Email, token)
-
-	c.JSON(http.StatusOK, gin.H{"message": "User registered. Please check your email to verify your account."})
+	// only once shown
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "User registered. Please check your email to verify your account.",
+		"recoveryKey": recoveryKey,
+	})
 }
 
 func Users(c *gin.Context) {
@@ -68,8 +81,8 @@ func Users(c *gin.Context) {
 
 func Login(c *gin.Context) {
 	var body struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Identifier string `json:"identifier"` // bisa email atau username
+		Password   string `json:"password"`
 	}
 
 	if err := c.BindJSON(&body); err != nil {
@@ -78,29 +91,26 @@ func Login(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := initializers.DB.Where("email = ?", body.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+	if err := initializers.DB.
+		Where("email = ? OR username = ?", body.Identifier, body.Identifier).
+		First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email/username or password"})
 		return
 	}
 
-	// password checking (misal bcrypt)
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email/username or password"})
 		return
 	}
 
-	// IsVerified checking
 	if !user.IsVerified {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "Please verify your email.",
-		})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Please verify your email."})
 		return
 	}
 
-	// create JWT token using user ID as sub
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": user.ID.String(),                      // user ID as subject
-		"exp": time.Now().Add(time.Hour * 24).Unix(), // token expired 24 hours later
+		"sub": user.ID.String(),
+		"exp": time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -109,13 +119,8 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie(
-		"token", tokenString,
-		3600*24,              // 1 day
-		"/", "", false, true, // secure=true (gunakan HTTPS), httpOnly=true
-	)
+	c.SetCookie("token", tokenString, 3600*24, "/", "", false, true)
 
-	// return token to client
 	c.JSON(http.StatusOK, gin.H{
 		"token":      tokenString,
 		"expires_in": time.Now().Add(time.Hour * 24).Unix(),
@@ -219,7 +224,7 @@ func ResendVerificationEmail(c *gin.Context) {
 		return
 	}
 
-	go services.SendVerificationEmail(user.Email, token)
+	go services.SendVerificationEmail(user.Email, token, user.RecoveryKey)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":         "Verification email resent successfully",

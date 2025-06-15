@@ -20,48 +20,44 @@ func NotFoundHandler(c *gin.Context) {
 func PostsCreate(c *gin.Context) {
 	db := c.MustGet("db").(*gorm.DB)
 
+	// Bind input (sudah terenkripsi dari frontend)
 	var reqBody struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
+		Title string `json:"title" binding:"required"` // terenkripsi
+		Body  string `json:"body" binding:"required"`  // terenkripsi
 	}
-
 	if err := c.ShouldBindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
+	// Auth
 	user, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
-
 	u := user.(models.User)
+
+	// Simpan apa adanya (sudah terenkripsi)
 	post := models.Post{
-		Title:     reqBody.Title,
-		Body:      reqBody.Body,
-		UserID:    u.ID,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
+		Title:  reqBody.Title,
+		Body:   reqBody.Body,
+		UserID: u.ID,
 	}
 
 	if err := db.Create(&post).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to create post"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create post"})
 		return
 	}
 
-	db.Preload("User").First(&post, post.ID)
-
-	postResponse := dto.PostResponse{
-		ID:        post.ID,
-		Title:     post.Title,
-		Body:      post.Body,
-		CreatedAt: post.CreatedAt,
-		UpdatedAt: post.UpdatedAt,
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"post": postResponse,
+	c.JSON(http.StatusCreated, gin.H{
+		"post": dto.PostResponse{
+			ID:        post.ID,
+			Title:     reqBody.Title, // masih terenkripsi
+			Body:      reqBody.Body,  // masih terenkripsi
+			CreatedAt: post.CreatedAt,
+			UpdatedAt: post.UpdatedAt,
+		},
 	})
 }
 
@@ -102,7 +98,9 @@ func PostsShowAllPosts(c *gin.Context) {
 	}
 
 	var user models.User
-	if err := db.Preload("Posts").Where("username = ?", username).First(&user).Error; err != nil {
+	if err := db.Preload("Posts", func(db *gorm.DB) *gorm.DB {
+		return db.Order("created_at DESC")
+	}).Where("username = ?", username).First(&user).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}

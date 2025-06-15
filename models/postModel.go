@@ -19,3 +19,15 @@ type Post struct {
 
 	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
+
+func GetPostsByUserID(db *gorm.DB, userID uuid.UUID) ([]Post, error) {
+	var posts []Post
+	if err := db.Where("user_id = ?", userID).Find(&posts).Error; err != nil {
+		return nil, err
+	}
+	return posts, nil
+}
+
+func UpdatePost(db *gorm.DB, post *Post) error {
+	return db.Save(post).Error
+}
