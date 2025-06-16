@@ -18,7 +18,7 @@ func main() {
 	router := gin.Default()
 
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5000"},
+		AllowOrigins:     []string{os.Getenv("FE_DOMAIN")},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -36,7 +36,7 @@ func main() {
 	// api.GET("/posts/:id", controllers.PostsShowById) // by ID
 	api.GET("/verify", controllers.VerifyEmail)
 	api.GET("/monkeytype", controllers.MonkeyAPI)
-	api.GET("/users", controllers.Users) // admin use
+	// api.GET("/users", controllers.Users) // admin use
 
 	// Protected endpoints
 	authorized := router.Group("/api")
