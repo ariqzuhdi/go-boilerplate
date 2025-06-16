@@ -18,11 +18,9 @@ func RequireAuth(c *gin.Context) {
 
 	// Coba ambil dari Authorization header
 	authHeader := c.GetHeader("Authorization")
-	fmt.Println("Auth Header:", authHeader)
 
 	if strings.HasPrefix(authHeader, "Bearer ") {
 		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
-		fmt.Println("Cookie:", tokenString)
 	} else {
 		// Coba ambil dari cookie
 		cookie, err := c.Cookie("token")
