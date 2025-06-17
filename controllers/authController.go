@@ -10,13 +10,16 @@ import (
 )
 
 type ResetPasswordRequest struct {
-	Email       string `json:"email" binding:"required,email"`
-	RecoveryKey string `json:"recoveryKey" binding:"required"`
-	NewPassword string `json:"newPassword" binding:"required,min=8"`
+	Email                         string `json:"email" binding:"required,email"`
+	RecoveryKey                   string `json:"recoveryKey" binding:"required"`
+	NewPassword                   string `json:"newPassword" binding:"required,min=8"`
+	EncryptedContentKeyByPassword string `json:"encryptedContentKeyByPassword" binding:"required"`
 }
 
 func ResetPasswordWithRecoveryKey(c *gin.Context) {
 	var req ResetPasswordRequest
+	user.EncryptedContentKeyByPassword = req.EncryptedContentKeyByPassword
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
