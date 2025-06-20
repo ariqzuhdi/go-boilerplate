@@ -32,11 +32,12 @@ func main() {
 	api.POST("/login", controllers.Login)
 	api.POST("/resend-verification", controllers.ResendVerificationEmail)
 	api.GET("/posts", controllers.PostsIndex) // all posts
-	api.POST("/reset-password", controllers.ResetPasswordWithRecoveryKey)
+	// api.POST("/reset-password", controllers.ResetPasswordWithRecoveryKey)
 	// api.GET("/posts/:id", controllers.PostsShowById) // by ID
 	api.GET("/verify", controllers.VerifyEmail)
 	api.GET("/monkeytype", controllers.MonkeyAPI)
 	// api.GET("/users", controllers.Users) // admin use
+	api.POST("/reset-password", controllers.ResetPasswordWithRecoveryKey)
 
 	// Protected endpoints
 	authorized := router.Group("/api")
@@ -50,7 +51,6 @@ func main() {
 		authorized.POST("/logout", controllers.Logout)
 		authorized.GET("/", controllers.HomeHandler)
 		authorized.GET("/user", controllers.GetCurrentUser)
-
 	}
 
 	router.NoRoute(controllers.NotFoundHandler)
