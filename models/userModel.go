@@ -39,3 +39,11 @@ func GetUserByEmail(db *gorm.DB, email string) (User, error) {
 func UpdateUser(db *gorm.DB, user *User) error {
 	return db.Save(user).Error
 }
+
+func UpdateUsername(db *gorm.DB, userID uuid.UUID, newUsername string) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("username", newUsername).Error
+}
+
+func UpdateEmail(db *gorm.DB, userID uuid.UUID, newEmail string) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("email", newEmail).Error
+}

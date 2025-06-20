@@ -51,6 +51,8 @@ func main() {
 		authorized.POST("/logout", controllers.Logout)
 		authorized.GET("/", controllers.HomeHandler)
 		authorized.GET("/user", controllers.GetCurrentUser)
+		authorized.PUT("/account/change-username", controllers.ChangeUsername)
+		authorized.PUT("/account/change-email", controllers.ChangeEmail)
 	}
 
 	router.NoRoute(controllers.NotFoundHandler)
