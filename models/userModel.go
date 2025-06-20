@@ -14,6 +14,9 @@ type User struct {
 	Password    string    `gorm:"not null" json:"password" binding:"required"`
 	RecoveryKey string    `gorm:"default:null" json:"recoveryKey,omitempty"`
 
+	EncryptedContentKeyByPassword string `gorm:"column:encrypted_content_key_by_password" json:"-"`
+	EncryptedContentKeyByRecovery string `gorm:"column:encrypted_content_key_by_recovery" json:"-"`
+
 	ResendCount            int       `gorm:"default:0" json:"resendCount,omitempty"`
 	VerificationToken      string    `gorm:"default:null" json:"verificationToken,omitempty"`
 	LastVerificationSentAt time.Time `gorm:"default:null" json:"lastVerificationSentAt,omitempty"`
@@ -35,4 +38,12 @@ func GetUserByEmail(db *gorm.DB, email string) (User, error) {
 
 func UpdateUser(db *gorm.DB, user *User) error {
 	return db.Save(user).Error
+}
+
+func UpdateUsername(db *gorm.DB, userID uuid.UUID, newUsername string) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("username", newUsername).Error
+}
+
+func UpdateEmail(db *gorm.DB, userID uuid.UUID, newEmail string) error {
+	return db.Model(&User{}).Where("id = ?", userID).Update("email", newEmail).Error
 }
